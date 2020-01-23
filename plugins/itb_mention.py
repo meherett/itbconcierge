@@ -1,3 +1,4 @@
+import random
 import re
 import subprocess
 from datetime import datetime, timedelta
@@ -8,10 +9,14 @@ from slackbot.bot import default_reply, listen_to, react_to, respond_to
 from slackbot.dispatcher import Message
 from sqlalchemy.sql.functions import func
 
-from slackbot_settings import ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY
+from slackbot_settings import (GOOD_REACTIONS, ITB_FOUNDATION_ADDRESS,
+                               ITB_FOUNDATION_PRIVKEY, ITBCAFE_GOODS)
 
-from .model import DBContext, Users, Symbol
+from .model import DBContext, Symbol, Users
 from .wallet import Wallet
+
+# いいね！を欲した者
+greedies = []
 
 
 @listen_to("ITB.*ヘルプ", re.IGNORECASE)
@@ -24,16 +29,21 @@ def itb_get_help(message: Message):
     response_txt += "\n"
     response_txt += "ITB 入会\n"
     response_txt += "    ITBコンシェルジュサービスに入会します。\n"
-    response_txt += "    入会すると、ETHアドレスが新規発行され、ITBトークンを利用することができるようになります。\n"
-    response_txt += "    発行されたETHアドレスと秘密鍵はユーザーに所属し、DMで通知されます。\n"
-    response_txt += "    通知された秘密鍵を外部ウォレット(MetaMaskなど)にインポートし、\n"
-    response_txt += "    ITBコンシェルジュ以外の方法で、ITBトークンにアクセスすることもできます。\n"
+    response_txt += "    入会するとETHアドレスが新規発行され、ITBトークンを利用できるようになります。\n"
+    response_txt += "    新規発行されたETHアドレスと秘密鍵は、入会したユーザーにDMで通知します。\n"
+    response_txt += "    サービスの提供のため、このアドレスの秘密鍵はコンシェルジュでもお預かりします。\n"
+    response_txt += "\n"
+    response_txt += "ITB 退会\n"
+    response_txt += "    ITBコンシェルジュサービスを退会します。\n"
     response_txt += "\n"
     response_txt += "ITB 残高照会\n"
     response_txt += "    ITBトークンの残高を取得します。\n"
     response_txt += "\n"
-    response_txt += "ITBCafe 購入\n"
-    response_txt += "    ITBCafeで商品を購入するときに実行します。\n"
+    response_txt += "ITBCafe 商品一覧\n"
+    response_txt += "    ITBCafeで購入できる商品一覧を取得します。\n"
+    response_txt += "\n"
+    response_txt += "ITBCafe 購入 {商品名}\n"
+    response_txt += "    ITBCafeで商品を購入します。\n"
     response_txt += "```"
 
     message.reply(response_txt)
@@ -78,7 +88,10 @@ def itb_regist_user(message: Message):
     # ユーザー登録されている場合
     if user is not None:
 
-        response_txt = "ITBコンシェルジュサービスに既に入会しています。\n"
+        response_txt = "既にITBコンシェルジュサービスに入会しています。"
+        message.reply(response_txt)
+
+        response_txt = "あなたのアカウント情報はこちらです。\n"
         response_txt += "```\n"
         response_txt += "userid:{}\n"
         response_txt += "address:{}\n"
@@ -113,7 +126,10 @@ def itb_regist_user(message: Message):
         db_context.session.flush()
         db_context.session.commit()
 
-        response_txt = "ITBコンシェルジュサービスへ入会しました。\n"
+        response_txt = "ITBコンシェルジュサービスへ入会しました。"
+        message.reply(response_txt)
+
+        response_txt = "あなたのアカウント情報はこちらです。\n"
         response_txt += "```\n"
         response_txt += "userid:{}\n"
         response_txt += "address:{}\n"
@@ -125,6 +141,33 @@ def itb_regist_user(message: Message):
         )
 
         message.direct_reply(response_txt)
+
+    # DBセッションを閉じる
+    db_context.session.close()
+
+
+@respond_to("ITB.*退会", re.IGNORECASE)
+@listen_to("ITB.*退会", re.IGNORECASE)
+def itb_cancel_registration(message: Message):
+
+    # DBセッションを開く
+    db_context = DBContext()
+
+    # ユーザーを照会する
+    userid = message.user["id"]
+    user = get_user(db_context, userid)
+
+    # ユーザー登録されていない場合
+    if user is None:
+
+        response_txt = "ITBコンシェルジュサービスを利用するには入会する必要があります。"
+        message.reply(response_txt)
+
+    # ユーザー登録されている場合
+    else:
+
+        response_txt = "退会するなんてとんでもない！"
+        message.reply(response_txt)
 
     # DBセッションを閉じる
     db_context.session.close()
@@ -145,7 +188,7 @@ def itb_get_balance(message: Message):
     if user is None:
 
         response_txt = "ITBコンシェルジュサービスを利用するには入会する必要があります。"
-        message.direct_reply(response_txt)
+        message.reply(response_txt)
 
     # ユーザー登録されている場合
     else:
@@ -159,40 +202,7 @@ def itb_get_balance(message: Message):
             itb_balance
         )
 
-        message.direct_reply(response_txt)
-
-    # DBセッションを閉じる
-    db_context.session.close()
-
-
-@listen_to(u"ITBCafe.*購入", re.IGNORECASE)
-@respond_to(u"ITBCafe.*購入", re.IGNORECASE)
-def itbcafe_buy_something(message: Message):
-
-    # DBセッションを開く
-    db_context = DBContext()
-
-    # ユーザーを照会する
-    userid = message.user["id"]
-    user = get_user(db_context, userid)
-
-    # ユーザー登録されていない場合
-    if user is None:
-
-        response_txt = "ITBコンシェルジュサービスを利用するには入会する必要があります。"
-        message.direct_reply(response_txt)
-
-    # ユーザー登録されている場合
-    else:
-
-        try:
-            user_wallet = Wallet(user.address, user.privkey)
-            user_wallet.sendto(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal("100"))
-            response_txt = "somethingの購入が完了しました。"
-        except Exception as ex:
-            response_txt = str(ex)
-
-        message.direct_reply(response_txt)
+        message.reply(response_txt)
 
     # DBセッションを閉じる
     db_context.session.close()
@@ -215,28 +225,147 @@ def itb_do_reaction(message: Message):
     # いずれのユーザーも登録されている場合
     if from_user and to_user:
 
-        good_reactions = [
-            "mona", "sasuga", "azs", "ok_hand", "ii_hanashi", "kf-sugoi", "kami", "tada", "+1", "arigatou"
-        ]
-
-        if message.body["reaction"] in good_reactions:
+        if message.body["reaction"] in GOOD_REACTIONS:
 
             try:
                 # いいね！チップを送金する
                 from_user_wallet = Wallet(from_user.address, from_user.privkey)
-                from_user_wallet.sendto(to_user.address, Symbol.ITB, Decimal("100"))
+                from_user_wallet.sendto(to_user.address, Symbol.ITB, Decimal("30"))
+
+                response_txt = "いいね！チップを送金しました。(-30 ITB)"
+                message.direct_reply(response_txt)
 
                 # いいね！報酬を付与する
                 faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
-                faunder_wallet.sendto(from_user.address, Symbol.ITB, Decimal("1000"))
-                faunder_wallet.sendto(to_user.address, Symbol.ITB, Decimal("1000"))
+                faunder_wallet.sendto(from_user.address, Symbol.ITB, Decimal("50"))
+                faunder_wallet.sendto(to_user.address, Symbol.ITB, Decimal("50"))
 
-                response_txt = "いいね！のご利用ありがとうございました。"
+                response_txt = "グッドコミュニケーションボーナス:+1:。(+50 ITB)"
+                message.direct_reply(response_txt)
 
             except Exception as ex:
                 response_txt = str(ex)
 
-            message.direct_reply(response_txt)
+    # DBセッションを閉じる
+    db_context.session.close()
+
+
+@listen_to("ITBCafe.*商品一覧", re.IGNORECASE)
+@respond_to("ITBCafe.*商品一覧", re.IGNORECASE)
+def itbcafe_get_goods(message: Message):
+
+    # DBセッションを開く
+    db_context = DBContext()
+
+    # ユーザーを照会する
+    userid = message.user["id"]
+    user = get_user(db_context, userid)
+
+    # ユーザー登録されていない場合
+    if user is None:
+
+        response_txt = "ITBコンシェルジュサービスを利用するには入会する必要があります。"
+        message.reply(response_txt)
+
+    # ユーザー登録されている場合
+    else:
+
+        response_txt = "ITBCafeでは下記の商品を取り扱っています。\n"
+        response_txt += "```\n"
+        response_txt += "お菓子\n"
+        response_txt += "いいね！ブースト\n"
+        response_txt += "```"
+
+        message.reply(response_txt)
 
     # DBセッションを閉じる
     db_context.session.close()
+
+
+@listen_to("ITBCafe.*購入", re.IGNORECASE)
+@respond_to("ITBCafe.*購入", re.IGNORECASE)
+def itbcafe_buy_goods(message: Message):
+
+    # DBセッションを開く
+    db_context = DBContext()
+
+    # ユーザーを照会する
+    userid = message.user["id"]
+    user = get_user(db_context, userid)
+
+    # ユーザー登録されていない場合
+    if user is None:
+
+        response_txt = "ITBコンシェルジュサービスを利用するには入会する必要があります。"
+        message.reply(response_txt)
+
+    # ユーザー登録されている場合
+    else:
+
+        can_buy = False
+
+        for goods in ITBCAFE_GOODS:
+
+            # メッセージ本文を取得する
+            message_body = message.body["text"]
+
+            # メッセージ本文に商品に商品名が含まれている場合
+            if message_body.find(goods["name"]) > -1:
+
+                can_buy = True
+
+                try:
+                    user_wallet = Wallet(user.address, user.privkey)
+                    user_wallet.sendto(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(goods["price"]))
+
+                    response_txt = "{}の購入が完了しました。(-{} ITB)"
+
+                    response_txt = response_txt.format(
+                        goods["name"], goods["price"]
+                    )
+
+                    message.reply(response_txt)
+
+                    # いいね！を欲した者に登録する
+                    if goods["name"].find("いいね") > -1:
+                        add_to_greedies(message.user["id"])
+
+                except Exception as ex:
+                    response_txt = str(ex)
+
+        if not can_buy:
+
+            response_txt = "取り扱いのない商品です。"
+            message.reply(response_txt)
+
+    # DBセッションを閉じる
+    db_context.session.close()
+
+
+def add_to_greedies(userid: str):
+    """
+    「いいね！」を欲した人に登録する
+    """
+    user = list(filter(lambda x: x == userid, greedies))
+    if len(user) == 0:
+        greedies.append(userid)
+
+
+def give_like_to_greedies(message: Message):
+    """
+    「いいね！」を欲した人に「いいね！」する
+    """
+    user = list(filter(lambda x: x == message.user["id"], greedies))
+    if len(user) > 0:
+        message.react(random.choice(GOOD_REACTIONS))
+
+
+@listen_to(".*")
+@respond_to(".*")
+def default_reply_all(message: Message):
+    """
+    デフォルト
+    """
+
+    # 「いいね！」を欲した人に「いいね！」する
+    give_like_to_greedies(message)
