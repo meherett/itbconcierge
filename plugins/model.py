@@ -7,17 +7,17 @@ from sqlalchemy.orm import sessionmaker
 Base = declarative_base()
 
 
-class Users(Base):
-    __tablename__ = 'users'
+class User(Base):
+    __tablename__ = 'user'
 
     id = Column("id", Integer, primary_key=True, autoincrement=True)
-    userid = Column(Text, nullable=False)
-    address = Column(Text, nullable=False)
-    privkey = Column(Text, nullable=False)
+    slack_uid = Column(Text, nullable=False)
+    eth_address = Column(Text, nullable=True)
+    eth_privkey = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False)
 
     __table_args__ = (
-        Index("ui_users_01", userid, unique=True),
+        Index("ui_user_01", slack_uid, unique=True),
     )
 
 
