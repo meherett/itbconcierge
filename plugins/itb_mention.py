@@ -112,8 +112,8 @@ def itb_regist_user(message: Message):
 
         # 新規アドレスに初期残高を付与する
         faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
-        faunder_wallet.sendto(new_address, Symbol.ETH, Decimal("1"))    # 送金時のガス代として
-        faunder_wallet.sendto(new_address, Symbol.ITB, Decimal("1000"))
+        faunder_wallet.send_to(new_address, Symbol.ETH, Decimal("1"))    # 送金時のガス代として
+        faunder_wallet.send_to(new_address, Symbol.ITB, Decimal("1000"))
 
         # ユーザーを新規登録する
         new_user = Users(
@@ -230,15 +230,15 @@ def itb_do_reaction(message: Message):
             try:
                 # いいね！チップを送金する
                 from_user_wallet = Wallet(from_user.address, from_user.privkey)
-                from_user_wallet.sendto(to_user.address, Symbol.ITB, Decimal("30"))
+                from_user_wallet.send_to(to_user.address, Symbol.ITB, Decimal("30"))
 
                 response_txt = "いいね！チップを送金しました。(-30 ITB)"
                 message.direct_reply(response_txt)
 
                 # いいね！報酬を付与する
                 faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
-                faunder_wallet.sendto(from_user.address, Symbol.ITB, Decimal("50"))
-                faunder_wallet.sendto(to_user.address, Symbol.ITB, Decimal("50"))
+                faunder_wallet.send_to(from_user.address, Symbol.ITB, Decimal("50"))
+                faunder_wallet.send_to(to_user.address, Symbol.ITB, Decimal("50"))
 
                 response_txt = "グッドコミュニケーションボーナス:+1:。(+50 ITB)"
                 message.direct_reply(response_txt)
@@ -316,7 +316,7 @@ def itbcafe_buy_goods(message: Message):
 
                 try:
                     user_wallet = Wallet(user.address, user.privkey)
-                    user_wallet.sendto(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(goods["price"]))
+                    user_wallet.send_to(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(goods["price"]))
 
                     response_txt = "{}の購入が完了しました。(-{} ITB)"
 

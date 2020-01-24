@@ -119,6 +119,10 @@ $ python -m pip install reslackbot
 $ python -m pip install requests
 $ python -m pip install pyopenssl
 
+### Ethereum関連ライブラリをインストールする
+$ python -m pip install web3
+$ python -m pip install cobra-hdwallet
+
 Slackでボットを作成する
 -------------
 
