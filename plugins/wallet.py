@@ -57,13 +57,13 @@ class Wallet(object):
         # ETHの場合
         if symbol == Symbol.ETH:
             balance = self._web3.eth.getBalance(self._address)
-            ether_balance: int = self._web3.toWei(balance, 'ether')
+            ether_balance: int = self._web3.fromWei(balance, 'ether')
             return Decimal(str(ether_balance))
 
         # ITBの場合
         elif symbol == Symbol.ITB:
-            token_balance = self._contract.functions.balanceOf().call()
-            itb_balance: int = self._web3.toWei(token_balance, 'ether')
+            token_balance = self._contract.functions.balanceOf(self._address).call()
+            itb_balance: int = self._web3.fromWei(token_balance, 'ether')
             return Decimal(str(itb_balance))
         return Decimal("0")
 
@@ -90,6 +90,7 @@ class Wallet(object):
         tx_hash = ""
 
         from_address = self._web3.toChecksumAddress(self._address)
+        to_address = self._web3.toChecksumAddress(to_address)
         tx_params = {
             'gasPrice': self._web3.toWei('1', 'gwei'),
             'nonce': self._web3.eth.getTransactionCount(from_address),
