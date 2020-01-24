@@ -108,7 +108,7 @@ def itb_regist_user(message: Message):
     else:
 
         # 新規アドレスを発行する
-        new_address, new_privkey = Wallet.create_address()
+        new_address, new_privkey = Wallet.create_address(userid)
 
         # 新規アドレスに初期残高を付与する
         faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
