@@ -22,7 +22,7 @@ GOOD_REACTIONS = [
 ]
 
 # ITBCafeの商品一覧
-ITBCAFE_GOODS = [
+ITBCAFE_ITEMS = [
     {"name": "お菓子", "price": 100},
     {"name": "いいね！ブースト", "price": 300}
 ]

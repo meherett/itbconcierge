@@ -45,7 +45,8 @@ setup(
         'pyopenssl',
         'web3==5.4.0',
         'cobra_hdwallet'
-        # 'pywallet==0.1.0',
-        'cytoolz'
+        'pywallet==0.1.0',
+        'cytoolz',
+        'typing'
     ],
 )

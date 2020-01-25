@@ -1,7 +1,7 @@
 ITBトークンとは
 =============
 
-ITBトークンとは、IT分科会を主体とし発行されたコインのことです。
+ITBトークンとは、IT分科会を主体とし発行されたトークンのことです。
 トークンエコノミーの実現を最終的な目的とし、
 まずは身近なところからトークンの活用を模索してまいります。
 
@@ -34,7 +34,7 @@ ITBトークンは、ITBコンシェルジュを呼び出し、
 ユーザー登録することで入手することができます。
 新規登録時にITB財団から1000ITBが付与されます。
 
-### ITBトークンの送付方法
+### いいね！チップの送金
 
 ITBトークンは、Slackで「いいね！」アイコンを送ることで、
 「いいね！」をした相手に30ITBを送ることができます。
@@ -50,14 +50,15 @@ ITBトークンは、ITB Cafeでお菓子と交換することができます。
 
 現在、ITB Cafeは有志によって運営されていますが、
 ITBトークンを保有・消費できるということは、
-Slackでの円滑なコミュニケーションが達成された成果でもあるので、
+その源泉であるSlackでのコミュニケーションを通じて、
+円滑なコミュニケーションが達成された成果でもあるので、
 
 ゆくゆくは消費されたITBトークンを事業主に買い取って頂き、
 ITB Cafeの運営資金にあてることで、持続可能な運営体制を整えてまいります。
 
 また現在、ITB Cafeの支払い方法は非常に古典的でありますが、
-「"ブロックチェーン" x "IoT" x "AI"」を融合させ、
-継続的なアップデートをすることでハイテク化を進めてまいります。
+「"Blockchain" x "IoT" x "AI"」を真に融合し、
+継続的なアップデートによりハイテク化を進めてまいります。
 
 具体的に、
 (AI)顔でユーザーを認識し、
@@ -83,13 +84,15 @@ ITBコンシェルジュとのDMチャンネルでコマンドを投稿します
 ITBコンシェルジュの開発について
 =============
 
-開発環境の構築(Windows)
+開発環境の構築
 -------------
 
 ### Pythonのバージョンを確認する
 
+※Python3.7以上で動作します。
+
 $ python -V
-Python 3.7.2
+Python 3.7.4
 
 ### プロジェクトディレクトリを作成する
 
@@ -97,31 +100,19 @@ $ mkdir -p ~/source/itbconcierge/
 
 ### Python仮想環境を構築する
 
-$ cd /d d:\
-$ cd D:\Source\ITBConcierge\.venv
-$ python -m venv py372
-$ D:\Source\ITBConcierge\.venv\py372\Scripts\activate
-$ python -V
-Python 3.7.2
+$ cd ~/source/itbconcierge/
+$ mkdir .venv
+$ cd ~/source/itbconcierge/.venv/
+$ python3.7 -m venv py374
+$ source py374/bin/activate
+$ pip install --upgrade pip setuptools
+$ python --version
+Python 3.7.4
 
-### 基本ライブラリをインストールする
+### ITBConciergeをインストールする
 
-$ python -m ensurepip
-$ python -m pip install --upgrade pip
-$ python -m pip install pylint
-$ python -m pip install autopep8
-$ python -m pip install rope
-$ python -m pip install ptvsd
-$ python -m pip install SQLAlchemy
-
-### slackbot制御ライブラリをインストールする
-$ python -m pip install reslackbot
-$ python -m pip install requests
-$ python -m pip install pyopenssl
-
-### Ethereum関連ライブラリをインストールする
-$ python -m pip install web3
-$ python -m pip install cobra-hdwallet
+$ cd ~/source/itbconcierge/
+$ python setup.py develop
 
 Slackでボットを作成する
 -------------
@@ -136,7 +127,7 @@ slackbot_settings.pyのAPI_TOKENに記述します。
 
 ### 単体で実行する場合
 $ cd ~/source/itbconcierge
-$ source .venv/py372/bin/activate
+$ source .venv/py374/bin/activate
 $ python run.py
 
 ### supervisor化して実行する場合
@@ -149,16 +140,16 @@ $ sudo apt -y install supervisor
 ```
 /etc/supervisor/conf.d$ cat itbconcierge.conf 
 [program:itbconcierge]
-command=sudo /home/pi/source/itbconcierge/.venv/py372/bin/python /home/pi/source/itbconcierge/run.py
+command=sudo /home/pi/source/itbconcierge/.venv/py374/bin/python /home/pi/source/itbconcierge/run.py
 user=pi
 autostart=true
 autorestart=true
-directory=/home/pi/itbconcierge/shenlong
+directory=/home/pi/source/itbconcierge
 ```
 
 ```
 proxy環境下では下記をコマンド先頭に付ける必要があるかもしれない。
-$ env https_proxy=192.168.51.250:3128
+$ env https_proxy=xxx.xxx.xx.xxx:xxxx
 ```
 
 設定ファイルを再び読み込む

@@ -1,13 +1,20 @@
-from json import load
 from decimal import Decimal
+from json import load
+
+from cobra_hdwallet import CobraHDWallet
 from eth_typing import URI
 from web3 import Web3, WebsocketProvider
-from cobra_hdwallet import CobraHDWallet
+
+from slackbot_settings import (CLIENT_API_URL, CONTRACT_ADDRESS,
+                               ITB_FOUNDATION_MNEMONIC)
+
 from .model import Symbol
-from slackbot_settings import ITB_FOUNDATION_MNEMONIC, CLIENT_API_URL, CONTRACT_ADDRESS
 
 
-class Wallet(object):
+class WalletController:
+    """
+    ウォレットを制御するクラス
+    """
 
     def __init__(self, address: str, privkey: str):
         self._address = address
@@ -127,4 +134,5 @@ class Wallet(object):
                 is_success = True
             except Exception as e:
                 error_reason = str(e)
+
         return is_success, tx_hash, error_reason
