@@ -355,7 +355,7 @@ def itbcafe_buy_goods(message: Message):
                     is_success, tx_id, error_reason = user_wallet.send_to(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(goods["price"]))
 
                     response_txt = build_message_on_sent_tx(
-                        "{}の購入が完了しました:yum:\ (-{} ITB)".format(goods["name"], goods["price"]),
+                        "{}の購入が完了しました:yum: (-{} ITB)".format(goods["name"], goods["price"]),
                         "{}の購入に失敗しました:sob:".format(goods["name"]),
                         is_success, tx_id, error_reason
                     )
