@@ -195,7 +195,7 @@ class WithdrawalExecutor(threading.Thread):
                         self._slackclient.send_message(
                             channel_id,
                             "新規登録ボーナスを獲得しました:laughing: (+{:.0f} ITB)"
-                            .format(wreq.amount)
+                            .format(wreq.amount + amount_grp)
                         )
                     else:
                         self._slackclient.send_message(
@@ -211,7 +211,7 @@ class WithdrawalExecutor(threading.Thread):
                         self._slackclient.send_message(
                             channel_id,
                             "いいね！チップを獲得しました:laughing: (+{:.0f} ITB)"
-                            .format(wreq.amount)
+                            .format(wreq.amount + amount_grp)
                         )
 
                     # 送金元ユーザーに通知する
@@ -220,7 +220,7 @@ class WithdrawalExecutor(threading.Thread):
                         self._slackclient.send_message(
                             channel_id,
                             "いいね！チップを送信しました:laughing: (-{:.0f} ITB)"
-                            .format(wreq.amount)
+                            .format(wreq.amount + amount_grp)
                         )
                     else:
                         self._slackclient.send_message(
@@ -236,7 +236,7 @@ class WithdrawalExecutor(threading.Thread):
                         self._slackclient.send_message(
                             channel_id,
                             "グッドコミュニケーションボーナスを獲得しました:laughing: (+{:.0f} ITB)"
-                            .format(wreq.amount)
+                            .format(wreq.amount + amount_grp)
                         )
 
             past_time = time.time() - start_time
