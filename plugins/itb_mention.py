@@ -22,6 +22,11 @@ greedies = []
 def itb_get_help(message: Message):
 
     response_txt = "```\n"
+    response_txt += "ITBトークンとは"
+    response_txt += "    ITBトークンとは、IT分科会を主体として発行されたトークンのことです。\n"
+    response_txt += "    トークンエコノミーの実現を目的とし、身近なところから進めてまいります。\n"
+    response_txt += "    さぁ、ITBコンシェルジュサービスに入会し、ITBトークンをGET!!しましょう。\n"
+    response_txt += "\n"
     response_txt += "ITB ヘルプ\n"
     response_txt += "    ITBコンシェルジュサービスで利用できるコマンドと説明を表示します。\n"
     response_txt += "\n"
