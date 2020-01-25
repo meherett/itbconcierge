@@ -106,7 +106,7 @@ class WithdrawalExecutor(threading.Thread):
         self.setDaemon(False)
         self._db_context = DBContext()
         self._should_stop = False
-        self._withdrawal_interval = 20
+        self._withdrawal_interval = 60
         self._slackclient = SlackClient(API_TOKEN)
 
     def run(self):
@@ -122,50 +122,80 @@ class WithdrawalExecutor(threading.Thread):
 
             self._db_context.session.expire_all()
 
+            is_resend = False
+
             # 送金依頼を取得する
-            wr = self._db_context.session.query(WithdrawalRequest) \
+            wreq = self._db_context.session.query(WithdrawalRequest) \
                 .filter(WithdrawalRequest.is_success.is_(None)) \
                 .order_by(asc(WithdrawalRequest.id)) \
                 .first()
 
-            if wr:
+            # 未着手の送金依頼がないとき、エラーとなった送金依頼を再送する
+            if wreq is None:
+                is_resend = True
+                wreq = self._db_context.session.query(WithdrawalRequest) \
+                    .filter(WithdrawalRequest.is_success == False) \
+                    .order_by(asc(WithdrawalRequest.id)) \
+                    .first()
+
+            if wreq:
 
                 # 送金元ユーザーを取得する
-                if wr.from_address == ITB_FOUNDATION_ADDRESS:
+                if wreq.from_address == ITB_FOUNDATION_ADDRESS:
                     from_user = None
                     from_address = ITB_FOUNDATION_ADDRESS
                     from_privkey = ITB_FOUNDATION_PRIVKEY
                 else:
-                    from_user = User.get_user_from_eth_address(self._db_context, wr.from_address)
+                    from_user = User.get_user_from_eth_address(self._db_context, wreq.from_address)
                     from_address = from_user.eth_address
                     from_privkey = from_user.eth_privkey
 
                 # 送金先ユーザーを取得する
-                to_user = User.get_user_from_eth_address(self._db_context, wr.to_address)
+                to_user = User.get_user_from_eth_address(self._db_context, wreq.to_address)
+
+                # 送金元・送金先が同一の依頼を取得する
+                amount_grp = Decimal("0")
+                wreq_grp = []
+                if not is_resend:
+                    wreq_grp = self._db_context.session.query(WithdrawalRequest) \
+                        .filter(WithdrawalRequest.is_success.is_(None)) \
+                        .filter(WithdrawalRequest.from_address == wreq.from_address) \
+                        .filter(WithdrawalRequest.to_address == wreq.to_address) \
+                        .filter(WithdrawalRequest.purpose == wreq.purpose) \
+                        .filter(WithdrawalRequest.id != wreq.id) \
+                        .order_by(asc(WithdrawalRequest.id)) \
+                        .all()
+
+                    amount_grp = sum(map(lambda x: x.amount, wreq_grp))
 
                 # 送金する
                 wc = WalletController(from_address, from_privkey)
-                is_success, tx_hash, error_reason = wc.send_to(wr.to_address, wr.symbol, wr.amount)
+                is_success, tx_hash, error_reason = wc.send_to(wreq.to_address, wreq.symbol, wreq.amount + amount_grp)
 
                 # 送金結果を反映する
-                wr.is_success = is_success
-                wr.tx_hash = tx_hash
-                wr.error_reason = error_reason
-                wr.updated_at = func.now()
+                wreq.is_success = is_success
+                wreq.tx_hash = tx_hash
+                wreq.error_reason = error_reason
+                wreq.updated_at = func.now()
+                for item in wreq_grp:
+                    item.is_success = is_success
+                    item.tx_hash = tx_hash
+                    item.error_reason = error_reason
+                    item.updated_at = func.now()
                 self._db_context.session.commit()
 
                 # 送金結果を通知する
-                if wr.purpose == "ガス代補充":
+                if wreq.purpose == "ガス代補充":
                     pass
-                elif wr.purpose == "新規登録ボーナス":
+                elif wreq.purpose == "新規登録ボーナス":
 
                     # 送金先ユーザーに通知する
                     channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
-                    if wr.is_success == True:
+                    if wreq.is_success == True:
                         self._slackclient.send_message(
                             channel_id,
                             "新規登録ボーナスを獲得しました:laughing: (+{:.0f} ITB)"
-                            .format(wr.amount)
+                            .format(wreq.amount)
                         )
                     else:
                         self._slackclient.send_message(
@@ -173,24 +203,24 @@ class WithdrawalExecutor(threading.Thread):
                             "新規登録ボーナスの獲得に失敗しました:sob:"
                         )
 
-                elif wr.purpose == "いいね！チップ":
+                elif wreq.purpose == "いいね！チップ":
 
                     # 送金先ユーザーに通知する
                     channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
-                    if wr.is_success == True:
+                    if wreq.is_success == True:
                         self._slackclient.send_message(
                             channel_id,
                             "いいね！チップを獲得しました:laughing: (+{:.0f} ITB)"
-                            .format(wr.amount)
+                            .format(wreq.amount)
                         )
 
                     # 送金元ユーザーに通知する
                     channel_id = self._slackclient.open_dm_channel(from_user.slack_uid)
-                    if wr.is_success == True:
+                    if wreq.is_success == True:
                         self._slackclient.send_message(
                             channel_id,
                             "いいね！チップを送信しました:laughing: (-{:.0f} ITB)"
-                            .format(wr.amount)
+                            .format(wreq.amount)
                         )
                     else:
                         self._slackclient.send_message(
@@ -198,15 +228,15 @@ class WithdrawalExecutor(threading.Thread):
                             "いいね！チップの送信に失敗しました:sob:"
                         )
 
-                elif wr.purpose == "グッドコミュニケーションボーナス":
+                elif wreq.purpose == "グッドコミュニケーションボーナス":
 
                     # 送金先ユーザーに通知する
                     channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
-                    if wr.is_success == True:
+                    if wreq.is_success == True:
                         self._slackclient.send_message(
                             channel_id,
                             "グッドコミュニケーションボーナスを獲得しました:laughing: (+{:.0f} ITB)"
-                            .format(wr.amount)
+                            .format(wreq.amount)
                         )
 
             past_time = time.time() - start_time

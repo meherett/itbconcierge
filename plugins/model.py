@@ -104,7 +104,7 @@ class WithdrawalRequest(Base):
     updated_at = Column(TIMESTAMP, nullable=False)
 
     __table_args__ = (
-        Index("ui_withdrawal_request_01", tx_hash, unique=True),
+        Index("ui_withdrawal_request_01", tx_hash, unique=False),
     )
 
 
