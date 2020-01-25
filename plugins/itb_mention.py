@@ -34,7 +34,7 @@ def itb_get_help(message: Message):
     response_txt += "    ITBコンシェルジュサービスに入会します。\n"
     response_txt += "    入会するとETHアドレスが新規発行され、ITBトークンを利用できるようになります。\n"
     response_txt += "    新規発行されたETHアドレスと秘密鍵は、入会したユーザーにDMで通知します。\n"
-    response_txt += "    サービスの提供のため、このアドレスの秘密鍵はコンシェルジュでもお預かりします。\n"
+    response_txt += "    サービスを提供するため、このアドレスの秘密鍵はコンシェルジュでもお預かりします。\n"
     response_txt += "\n"
     response_txt += "ITB 退会\n"
     response_txt += "    ITBコンシェルジュサービスを退会します。\n"
