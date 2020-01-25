@@ -1,30 +1,11 @@
-from sqlalchemy import (TIMESTAMP, Column, Index, Integer, Numeric, Text,
-                        create_engine)
+from __future__ import annotations
+
+from sqlalchemy import (TIMESTAMP, Boolean, Column, Index, Integer, Numeric,
+                        Text, create_engine)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-
 Base = declarative_base()
-
-
-class Users(Base):
-    __tablename__ = 'users'
-
-    id = Column("id", Integer, primary_key=True, autoincrement=True)
-    userid = Column(Text, nullable=False)
-    address = Column(Text, nullable=False)
-    privkey = Column(Text, nullable=False)
-    created_at = Column(TIMESTAMP, nullable=False)
-
-    __table_args__ = (
-        Index("ui_users_01", userid, unique=True),
-    )
-
-
-class Symbol:
-
-    ETH = "ETH"
-    ITB = "ITB"
 
 
 class DBContext:
@@ -38,3 +19,96 @@ class DBContext:
     @property
     def session(self):
         return self._session
+
+
+class User(Base):
+    __tablename__ = 'user'
+
+    id = Column("id", Integer, primary_key=True, autoincrement=True)
+    slack_uid = Column(Text, nullable=False)
+    slack_name = Column(Text, nullable=False)
+    eth_address = Column(Text, nullable=True)
+    eth_privkey = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, nullable=False)
+    updated_at = Column(TIMESTAMP, nullable=False)
+
+    __table_args__ = (
+        Index("ui_user_01", slack_uid, unique=True),
+        Index("ui_user_02", eth_address, unique=True),
+    )
+
+    @staticmethod
+    def get_user_from_slack_uid(db_context: DBContext, slack_uid: str) -> User:
+        """
+        ユーザー情報を取得します。
+
+        Parameters
+        ----------
+        db_context:
+            DBセッション
+        slack_uid: str
+            SlackのユーザーID
+
+        Returns
+        -------
+        User
+            ユーザー情報
+        """
+
+        # ユーザーを照会する
+        user = db_context.session.query(User) \
+            .filter(User.slack_uid == slack_uid) \
+            .first()
+
+        return user
+
+    @staticmethod
+    def get_user_from_eth_address(db_context: DBContext, eth_address: str) -> User:
+        """
+        ユーザー情報を取得します。
+
+        Parameters
+        ----------
+        db_context:
+            DBセッション
+        eth_address: str
+            ETHのアドレス
+
+        Returns
+        -------
+        User
+            ユーザー情報
+        """
+
+        # ユーザーを照会する
+        user = db_context.session.query(User) \
+            .filter(User.eth_address == eth_address) \
+            .first()
+
+        return user
+
+
+class WithdrawalRequest(Base):
+    __tablename__ = 'withdrawal_request'
+
+    id = Column("id", Integer, primary_key=True, autoincrement=True)
+    symbol = Column(Text, nullable=False)
+    amount = Column(Numeric, nullable=False)
+    from_address = Column(Text, nullable=False)
+    to_address = Column(Text, nullable=False)
+    purpose = Column(Text, nullable=False)
+    is_success = Column(Boolean, nullable=True)
+    error_reason = Column(Text, nullable=True)
+    tx_hash = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, nullable=False)
+    updated_at = Column(TIMESTAMP, nullable=False)
+
+    __table_args__ = (
+        Index("ui_withdrawal_request_01", tx_hash, unique=True),
+    )
+
+
+class Symbol:
+
+    ETH = "ETH"
+    ITB = "ITB"

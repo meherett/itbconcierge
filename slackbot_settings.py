@@ -8,6 +8,13 @@ PLUGINS = [
 ITB_FOUNDATION_ADDRESS = ""
 # ITB財団の秘密鍵
 ITB_FOUNDATION_PRIVKEY = ""
+# ITB財団HDウォレットのニーモニック
+ITB_FOUNDATION_MNEMONIC = ""
+
+# Ethereum Client API URI
+CLIENT_API_URL = "wss://ropsten.infura.io/ws/v3/{PROJECT_ID}"
+# Ethereum Contract Address
+CONTRACT_ADDRESS = "0x1d5406ffebFd89110310a111BB02e79b9F96F7a0"
 
 # いいね！アイコンの定義
 GOOD_REACTIONS = [
@@ -15,7 +22,7 @@ GOOD_REACTIONS = [
 ]
 
 # ITBCafeの商品一覧
-ITBCAFE_GOODS = [
+ITBCAFE_ITEMS = [
     {"name": "お菓子", "price": 100},
     {"name": "いいね！ブースト", "price": 300}
 ]

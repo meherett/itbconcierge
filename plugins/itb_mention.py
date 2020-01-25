@@ -1,19 +1,17 @@
 import random
 import re
-import subprocess
-from datetime import datetime, timedelta
 from decimal import Decimal
-from time import sleep
 
 from slackbot.bot import default_reply, listen_to, react_to, respond_to
 from slackbot.dispatcher import Message
 from sqlalchemy.sql.functions import func
 
-from slackbot_settings import (GOOD_REACTIONS, ITB_FOUNDATION_ADDRESS,
-                               ITB_FOUNDATION_PRIVKEY, ITBCAFE_GOODS)
+from slackbot_settings import (CONTRACT_ADDRESS, GOOD_REACTIONS,
+                               ITB_FOUNDATION_ADDRESS, ITBCAFE_ITEMS)
 
-from .model import DBContext, Symbol, Users
-from .wallet import Wallet
+from .model import DBContext, Symbol, User
+from .wallet import WalletController
+from .withdrawal import WithdrawalController
 
 # いいね！を欲した者
 greedies = []
@@ -24,6 +22,11 @@ greedies = []
 def itb_get_help(message: Message):
 
     response_txt = "```\n"
+    response_txt += "ITBトークンとは\n"
+    response_txt += "    ITBトークンとは、IT分科会を主体として発行されたトークンのことです。\n"
+    response_txt += "    トークンエコノミーの実現を目的とし、身近なところから進めてまいります。\n"
+    response_txt += "    さぁ、ITBコンシェルジュサービスに入会し、ITBトークンをGET!!しましょう。\n"
+    response_txt += "\n"
     response_txt += "ITB ヘルプ\n"
     response_txt += "    ITBコンシェルジュサービスで利用できるコマンドと説明を表示します。\n"
     response_txt += "\n"
@@ -31,7 +34,7 @@ def itb_get_help(message: Message):
     response_txt += "    ITBコンシェルジュサービスに入会します。\n"
     response_txt += "    入会するとETHアドレスが新規発行され、ITBトークンを利用できるようになります。\n"
     response_txt += "    新規発行されたETHアドレスと秘密鍵は、入会したユーザーにDMで通知します。\n"
-    response_txt += "    サービスの提供のため、このアドレスの秘密鍵はコンシェルジュでもお預かりします。\n"
+    response_txt += "    サービスを提供するため、このアドレスの秘密鍵はコンシェルジュでもお預かりします。\n"
     response_txt += "\n"
     response_txt += "ITB 退会\n"
     response_txt += "    ITBコンシェルジュサービスを退会します。\n"
@@ -49,41 +52,36 @@ def itb_get_help(message: Message):
     message.reply(response_txt)
 
 
-def get_user(db_context, userid: str) -> Users:
-    """
-    ユーザー情報を取得します。
+def build_message_on_sent_tx(message_on_success: str, message_on_failed: str, is_success: bool, tx_id: str, error_reason: str) -> str:
 
-    Parameters
-    ----------
-    db_context:
-        DBセッション
-    userid: str
-        ユーザーID
+    response_txt = ""
 
-    Returns
-    -------
-    Users
-        ユーザー情報
-    """
+    if is_success == True:
+        response_txt = "{}\n"
+        response_txt += "https://ropsten.etherscan.io/tx/{}\n"
+        response_txt = response_txt.format(
+            message_on_success, tx_id
+        )
+    else:
+        response_txt = "{}\n"
+        response_txt += "{}"
+        response_txt = response_txt.format(
+            message_on_failed, error_reason
+        )
 
-    # ユーザーIDを照会する
-    user = db_context.session.query(Users) \
-        .filter(Users.userid == userid) \
-        .first()
-
-    return user
+    return response_txt
 
 
 @respond_to("ITB.*入会", re.IGNORECASE)
 @listen_to("ITB.*入会", re.IGNORECASE)
-def itb_regist_user(message: Message):
+def itb_join_membership(message: Message):
 
     # DBセッションを開く
     db_context = DBContext()
 
-    # ユーザーを照会する
-    userid = message.user["id"]
-    user = get_user(db_context, userid)
+    # ユーザーを取得する
+    slack_uid = message.user["id"]
+    user = User.get_user_from_slack_uid(db_context, slack_uid)
 
     # ユーザー登録されている場合
     if user is not None:
@@ -91,56 +89,76 @@ def itb_regist_user(message: Message):
         response_txt = "既にITBコンシェルジュサービスに入会しています。"
         message.reply(response_txt)
 
-        response_txt = "あなたのアカウント情報はこちらです。\n"
+        response_txt = "ITBコンシェルジュサービスへようこそ。\n"
+        response_txt += "あなたのアカウント情報はこちらです。\n"
+        response_txt += "この秘密鍵は外部ウォレットで利用することができます。\n"
         response_txt += "```\n"
-        response_txt += "userid:{}\n"
-        response_txt += "address:{}\n"
-        response_txt += "privkey:{}\n"
+        response_txt += "slack_uid:{}\n"
+        response_txt += "eth_address:{}\n"
+        response_txt += "eth_privkey:{}\n"
+        response_txt += "https://ropsten.etherscan.io/token/{}?a={}\n"
         response_txt += "```"
-
         response_txt = response_txt.format(
-            user.userid, user.address, user.privkey
+            user.slack_uid, user.eth_address, user.eth_privkey, CONTRACT_ADDRESS, user.eth_address
         )
-
         message.direct_reply(response_txt)
 
     # ユーザー登録されていない場合
     else:
 
-        # 新規アドレスを発行する
-        new_address, new_privkey = Wallet.create_address()
-
-        # 新規アドレスに初期残高を付与する
-        faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
-        faunder_wallet.sendto(new_address, Symbol.ETH, Decimal("1"))    # 送金時のガス代として
-        faunder_wallet.sendto(new_address, Symbol.ITB, Decimal("1000"))
-
         # ユーザーを新規登録する
-        new_user = Users(
-            userid=userid,
-            address=new_address,
-            privkey=new_privkey,
-            created_at=func.now()
+        user = User(
+            slack_uid=slack_uid,
+            slack_name=message.user["real_name"],
+            created_at=func.now(),
+            updated_at=func.now()
         )
-        db_context.session.add(new_user)
+        db_context.session.add(user)
         db_context.session.flush()
-        db_context.session.commit()
+
+        # 新規アドレスを発行する
+        eth_address, eth_privkey = WalletController.create_address(user.id)
+        user.eth_address = eth_address
+        user.eth_privkey = eth_privkey
 
         response_txt = "ITBコンシェルジュサービスへ入会しました。"
         message.reply(response_txt)
 
-        response_txt = "あなたのアカウント情報はこちらです。\n"
+        response_txt = "ITBコンシェルジュサービスへようこそ。\n"
+        response_txt += "あなたのアカウント情報はこちらです。\n"
+        response_txt += "この秘密鍵は外部ウォレットで利用することができます。\n"
         response_txt += "```\n"
-        response_txt += "userid:{}\n"
-        response_txt += "address:{}\n"
-        response_txt += "privkey:{}\n"
+        response_txt += "slack_uid:{}\n"
+        response_txt += "eth_address:{}\n"
+        response_txt += "eth_privkey:{}\n"
+        response_txt += "https://ropsten.etherscan.io/token/{}?a={}\n"
         response_txt += "```"
-
         response_txt = response_txt.format(
-            userid, new_address, new_privkey
+            user.slack_uid, user.eth_address, user.eth_privkey, CONTRACT_ADDRESS, user.eth_address
+        )
+        message.direct_reply(response_txt)
+
+        # ガス代を付与する
+        wc = WithdrawalController(db_context)
+        wc.request_to_withdraw(
+            Symbol.ETH,
+            Decimal("1"),
+            ITB_FOUNDATION_ADDRESS,
+            user.eth_address,
+            "ガス代補充"
         )
 
-        message.direct_reply(response_txt)
+        # 新規登録ボーナスを付与する
+        wc.request_to_withdraw(
+            Symbol.ITB,
+            Decimal("1000"),
+            ITB_FOUNDATION_ADDRESS,
+            user.eth_address,
+            "新規登録ボーナス"
+        )
+
+        # コミット
+        db_context.session.commit()
 
     # DBセッションを閉じる
     db_context.session.close()
@@ -148,14 +166,14 @@ def itb_regist_user(message: Message):
 
 @respond_to("ITB.*退会", re.IGNORECASE)
 @listen_to("ITB.*退会", re.IGNORECASE)
-def itb_cancel_registration(message: Message):
+def itb_cancel_membership(message: Message):
 
     # DBセッションを開く
     db_context = DBContext()
 
-    # ユーザーを照会する
-    userid = message.user["id"]
-    user = get_user(db_context, userid)
+    # ユーザーを取得する
+    slack_uid = message.user["id"]
+    user = User.get_user_from_slack_uid(db_context, slack_uid)
 
     # ユーザー登録されていない場合
     if user is None:
@@ -180,9 +198,9 @@ def itb_get_balance(message: Message):
     # DBセッションを開く
     db_context = DBContext()
 
-    # ユーザーを照会する
-    userid = message.user["id"]
-    user = get_user(db_context, userid)
+    # ユーザーを取得する
+    slack_uid = message.user["id"]
+    user = User.get_user_from_slack_uid(db_context, slack_uid)
 
     # ユーザー登録されていない場合
     if user is None:
@@ -193,15 +211,13 @@ def itb_get_balance(message: Message):
     # ユーザー登録されている場合
     else:
 
-        user_wallet = Wallet(user.address, user.privkey)
+        user_wallet = WalletController(user.eth_address, user.eth_privkey)
         itb_balance = user_wallet.get_balance(Symbol.ITB)
 
         response_txt = "ITBトークンの残高は「{} ITB」です。"
-
         response_txt = response_txt.format(
             itb_balance
         )
-
         message.reply(response_txt)
 
     # DBセッションを閉じる
@@ -214,37 +230,47 @@ def itb_do_reaction(message: Message):
     # DBセッションを開く
     db_context = DBContext()
 
-    # 送金元ユーザーを照会する
-    from_userid = message.user["id"]
-    from_user = get_user(db_context, from_userid)
+    # 送金元ユーザーを取得する
+    from_slack_uid = message.user["id"]
+    from_user = User.get_user_from_slack_uid(db_context, from_slack_uid)
 
-    # 送金先ユーザーを照会する
-    to_userid = message.body["item_user"]
-    to_user = get_user(db_context, to_userid)
+    # 送金先ユーザーを取得する
+    to_slack_uid = message.body["item_user"]
+    to_user = User.get_user_from_slack_uid(db_context, to_slack_uid)
 
     # いずれのユーザーも登録されている場合
     if from_user and to_user:
 
         if message.body["reaction"] in GOOD_REACTIONS:
 
-            try:
-                # いいね！チップを送金する
-                from_user_wallet = Wallet(from_user.address, from_user.privkey)
-                from_user_wallet.sendto(to_user.address, Symbol.ITB, Decimal("30"))
+            # いいね！チップを送金する
+            wc = WithdrawalController(db_context)
+            wc.request_to_withdraw(
+                Symbol.ITB,
+                Decimal("30"),
+                from_user.eth_address,
+                to_user.eth_address,
+                "いいね！チップ"
+            )
 
-                response_txt = "いいね！チップを送金しました。(-30 ITB)"
-                message.direct_reply(response_txt)
+            # いいね！ボーナスを付与する
+            wc.request_to_withdraw(
+                Symbol.ITB,
+                Decimal("50"),
+                ITB_FOUNDATION_ADDRESS,
+                from_user.eth_address,
+                "グッドコミュニケーションボーナス"
+            )
+            wc.request_to_withdraw(
+                Symbol.ITB,
+                Decimal("50"),
+                ITB_FOUNDATION_ADDRESS,
+                to_user.eth_address,
+                "グッドコミュニケーションボーナス"
+            )
 
-                # いいね！報酬を付与する
-                faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
-                faunder_wallet.sendto(from_user.address, Symbol.ITB, Decimal("50"))
-                faunder_wallet.sendto(to_user.address, Symbol.ITB, Decimal("50"))
-
-                response_txt = "グッドコミュニケーションボーナス:+1:。(+50 ITB)"
-                message.direct_reply(response_txt)
-
-            except Exception as ex:
-                response_txt = str(ex)
+            # コミット
+            db_context.session.commit()
 
     # DBセッションを閉じる
     db_context.session.close()
@@ -257,9 +283,9 @@ def itbcafe_get_goods(message: Message):
     # DBセッションを開く
     db_context = DBContext()
 
-    # ユーザーを照会する
-    userid = message.user["id"]
-    user = get_user(db_context, userid)
+    # ユーザーを取得する
+    slack_uid = message.user["id"]
+    user = User.get_user_from_slack_uid(db_context, slack_uid)
 
     # ユーザー登録されていない場合
     if user is None:
@@ -272,10 +298,9 @@ def itbcafe_get_goods(message: Message):
 
         response_txt = "ITBCafeでは下記の商品を取り扱っています。\n"
         response_txt += "```\n"
-        response_txt += "お菓子\n"
-        response_txt += "いいね！ブースト\n"
+        for item in ITBCAFE_ITEMS:
+            response_txt += "・{} ({} ITB)\n".format(item["name"], item["price"])
         response_txt += "```"
-
         message.reply(response_txt)
 
     # DBセッションを閉じる
@@ -289,9 +314,9 @@ def itbcafe_buy_goods(message: Message):
     # DBセッションを開く
     db_context = DBContext()
 
-    # ユーザーを照会する
-    userid = message.user["id"]
-    user = get_user(db_context, userid)
+    # ユーザーを取得する
+    slack_uid = message.user["id"]
+    user = User.get_user_from_slack_uid(db_context, slack_uid)
 
     # ユーザー登録されていない場合
     if user is None:
@@ -304,30 +329,29 @@ def itbcafe_buy_goods(message: Message):
 
         can_buy = False
 
-        for goods in ITBCAFE_GOODS:
+        for item in ITBCAFE_ITEMS:
 
             # メッセージ本文を取得する
             message_body = message.body["text"]
 
             # メッセージ本文に商品に商品名が含まれている場合
-            if message_body.find(goods["name"]) > -1:
+            if message_body.find(item["name"]) > -1:
 
                 can_buy = True
 
                 try:
-                    user_wallet = Wallet(user.address, user.privkey)
-                    user_wallet.sendto(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(goods["price"]))
+                    user_wallet = WalletController(user.eth_address, user.eth_privkey)
+                    is_success, tx_id, error_reason = user_wallet.send_to(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(item["price"]))
 
-                    response_txt = "{}の購入が完了しました。(-{} ITB)"
-
-                    response_txt = response_txt.format(
-                        goods["name"], goods["price"]
+                    response_txt = build_message_on_sent_tx(
+                        "{}の購入が完了しました:yum: (-{} ITB)".format(item["name"], item["price"]),
+                        "{}の購入に失敗しました:sob:".format(item["name"]),
+                        is_success, tx_id, error_reason
                     )
-
                     message.reply(response_txt)
 
                     # いいね！を欲した者に登録する
-                    if goods["name"].find("いいね") > -1:
+                    if item["name"].find("いいね") > -1:
                         add_to_greedies(message.user["id"])
 
                 except Exception as ex:
