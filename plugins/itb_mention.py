@@ -6,8 +6,9 @@ from slackbot.bot import default_reply, listen_to, react_to, respond_to
 from slackbot.dispatcher import Message
 from sqlalchemy.sql.functions import func
 
-from slackbot_settings import (GOOD_REACTIONS, ITB_FOUNDATION_ADDRESS,
-                               ITB_FOUNDATION_PRIVKEY, ITBCAFE_GOODS)
+from slackbot_settings import (CONTRACT_ADDRESS, GOOD_REACTIONS,
+                               ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY,
+                               ITBCAFE_GOODS)
 
 from .model import DBContext, Symbol, User
 from .wallet import Wallet
@@ -71,6 +72,26 @@ def get_user(db_context, slack_uid: str) -> User:
     return user
 
 
+def build_message_on_sent_tx(message_on_success: str, message_on_failed: str, is_success: bool, tx_id: str, error_reason: str) -> str:
+
+    response_txt = ""
+
+    if is_success == True:
+        response_txt = "{}\n"
+        response_txt += "https://ropsten.etherscan.io/tx/{}\n"
+        response_txt = response_txt.format(
+            message_on_success, tx_id
+        )
+    else:
+        response_txt = "{}\n"
+        response_txt += "{}"
+        response_txt = response_txt.format(
+            message_on_failed, error_reason
+        )
+
+    return response_txt
+
+
 @respond_to("ITB.*入会", re.IGNORECASE)
 @listen_to("ITB.*入会", re.IGNORECASE)
 def itb_regist_user(message: Message):
@@ -88,15 +109,17 @@ def itb_regist_user(message: Message):
         response_txt = "既にITBコンシェルジュサービスに入会しています。"
         message.reply(response_txt)
 
-        response_txt = "あなたのアカウント情報はこちらです。\n"
+        response_txt = "アカウント情報はこちらです。\n"
+        response_txt += "この秘密鍵は外部ウォレットで利用することができます。\n"
         response_txt += "```\n"
         response_txt += "slack_uid:{}\n"
         response_txt += "eth_address:{}\n"
         response_txt += "eth_privkey:{}\n"
+        response_txt += "https://ropsten.etherscan.io/token/{}?a={}\n"
         response_txt += "```"
 
         response_txt = response_txt.format(
-            user.slack_uid, user.eth_address, user.eth_privkey
+            user.slack_uid, user.eth_address, user.eth_privkey, CONTRACT_ADDRESS, user.eth_address
         )
 
         message.direct_reply(response_txt)
@@ -117,27 +140,34 @@ def itb_regist_user(message: Message):
         user.eth_address = eth_address
         user.eth_privkey = eth_privkey
 
-        # 新規アドレスに初期残高を付与する
-        faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
-        faunder_wallet.send_to(user.eth_address, Symbol.ETH, Decimal("1"))      # 送金時のガス代
-        faunder_wallet.send_to(user.eth_address, Symbol.ITB, Decimal("1000"))   # 新規登録ボーナス
-
         db_context.session.commit()
 
         response_txt = "ITBコンシェルジュサービスへ入会しました。"
         message.reply(response_txt)
 
-        response_txt = "あなたのアカウント情報はこちらです。\n"
+        response_txt = "アカウント情報はこちらです。\n"
+        response_txt += "この秘密鍵は外部ウォレットで利用することができます。\n"
         response_txt += "```\n"
         response_txt += "slack_uid:{}\n"
         response_txt += "eth_address:{}\n"
         response_txt += "eth_privkey:{}\n"
+        response_txt += "https://ropsten.etherscan.io/token/{}?a={}\n"
         response_txt += "```"
-
         response_txt = response_txt.format(
-            slack_uid, eth_address, eth_privkey
+            user.slack_uid, user.eth_address, user.eth_privkey, CONTRACT_ADDRESS, user.eth_address
         )
+        message.direct_reply(response_txt)
 
+        # 新規アドレスに初期残高を付与する
+        faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
+        is_success, tx_id, error_reason = faunder_wallet.send_to(user.eth_address, Symbol.ETH, Decimal("1"))        # 送金時のガス代
+        is_success, tx_id, error_reason = faunder_wallet.send_to(user.eth_address, Symbol.ITB, Decimal("1000"))     # 新規登録ボーナス
+
+        response_txt = build_message_on_sent_tx(
+            "新規登録ボーナスを獲得しました:+1:\ (+1000 ITB)",
+            "新規登録ボーナスの獲得に失敗しました:sob:",
+            is_success, tx_id, error_reason
+        )
         message.direct_reply(response_txt)
 
     # DBセッションを閉じる
@@ -227,18 +257,26 @@ def itb_do_reaction(message: Message):
 
             try:
                 # いいね！チップを送金する
-                from_user_wallet = Wallet(from_user.eth_address, from_user.privkey)
-                from_user_wallet.send_to(to_user.eth_address, Symbol.ITB, Decimal("30"))
+                from_user_wallet = Wallet(from_user.eth_address, from_user.eth_privkey)
+                is_success, tx_id, error_reason = from_user_wallet.send_to(to_user.eth_address, Symbol.ITB, Decimal("30"))
 
-                response_txt = "いいね！チップを送金しました。(-30 ITB)"
+                response_txt = build_message_on_sent_tx(
+                    "いいね！チップを送金しました:+1: (-30 ITB)",
+                    "いいね！チップの送金に失敗しました:sob:",
+                    is_success, tx_id, error_reason
+                )
                 message.direct_reply(response_txt)
 
                 # いいね！ボーナスを付与する
                 faunder_wallet = Wallet(ITB_FOUNDATION_ADDRESS, ITB_FOUNDATION_PRIVKEY)
-                faunder_wallet.send_to(from_user.eth_address, Symbol.ITB, Decimal("50"))
-                faunder_wallet.send_to(to_user.eth_address, Symbol.ITB, Decimal("50"))
+                is_success, tx_id, error_reason = faunder_wallet.send_to(from_user.eth_address, Symbol.ITB, Decimal("50"))
+                is_success, tx_id, error_reason = faunder_wallet.send_to(to_user.eth_address, Symbol.ITB, Decimal("50"))
 
-                response_txt = "グッドコミュニケーションボーナス:+1:。(+50 ITB)"
+                response_txt = build_message_on_sent_tx(
+                    "グッドコミュニケーションボーナスを獲得しました:+1: (+50 ITB)",
+                    "グッドコミュニケーションボーナスの獲得に失敗しました:sob:",
+                    is_success, tx_id, error_reason
+                )
                 message.direct_reply(response_txt)
 
             except Exception as ex:
@@ -314,14 +352,13 @@ def itbcafe_buy_goods(message: Message):
 
                 try:
                     user_wallet = Wallet(user.eth_address, user.eth_privkey)
-                    user_wallet.send_to(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(goods["price"]))
+                    is_success, tx_id, error_reason = user_wallet.send_to(ITB_FOUNDATION_ADDRESS, Symbol.ITB, Decimal(goods["price"]))
 
-                    response_txt = "{}の購入が完了しました。(-{} ITB)"
-
-                    response_txt = response_txt.format(
-                        goods["name"], goods["price"]
+                    response_txt = build_message_on_sent_tx(
+                        "{}の購入が完了しました:yum:\ (-{} ITB)".format(goods["name"], goods["price"]),
+                        "{}の購入に失敗しました:sob:".format(goods["name"]),
+                        is_success, tx_id, error_reason
                     )
-
                     message.reply(response_txt)
 
                     # いいね！を欲した者に登録する
