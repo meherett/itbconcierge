@@ -100,6 +100,7 @@ $ mkdir -p ~/source/itbconcierge/
 
 ### Python仮想環境を構築する
 
+```
 $ cd ~/source/itbconcierge/
 $ mkdir .venv
 $ cd ~/source/itbconcierge/.venv/
@@ -108,11 +109,14 @@ $ source py374/bin/activate
 $ pip install --upgrade pip setuptools
 $ python --version
 Python 3.7.4
+```
 
 ### ITBConciergeをインストールする
 
+```
 $ cd ~/source/itbconcierge/
 $ python setup.py develop
+```
 
 Slackでボットを作成する
 -------------
@@ -126,14 +130,19 @@ slackbot_settings.pyのAPI_TOKENに記述します。
 -------------
 
 ### 単体で実行する場合
+
+```
 $ cd ~/source/itbconcierge
 $ source .venv/py374/bin/activate
 $ python run.py
+```
 
 ### supervisor化して実行する場合
 
+```
 supervisorをインストール
 $ sudo apt -y install supervisor
+```
 
 サービスを定義する
 
