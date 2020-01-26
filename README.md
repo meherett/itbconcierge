@@ -90,13 +90,16 @@ ITBコンシェルジュの開発について
 ### Pythonのバージョンを確認する
 
 ※Python3.7以上で動作します。
-
+```
 $ python -V
 Python 3.7.4
+```
 
 ### プロジェクトディレクトリを作成する
 
+```
 $ mkdir -p ~/source/itbconcierge/
+```
 
 ### Python仮想環境を構築する
 
@@ -162,8 +165,12 @@ $ env https_proxy=xxx.xxx.xx.xxx:xxxx
 ```
 
 設定ファイルを再び読み込む
+```
 $ sudo supervisorctl update
+```
 
 サービスを開始する
+```
 $ sudo supervisorctl start itbconcierge
+```
 
