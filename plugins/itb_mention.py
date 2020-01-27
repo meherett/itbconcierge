@@ -7,7 +7,7 @@ from slackbot.dispatcher import Message
 from sqlalchemy.sql.functions import func
 
 from slackbot_settings import (CONTRACT_ADDRESS, GOOD_REACTIONS,
-                               ITB_FOUNDATION_ADDRESS, ITBCAFE_ITEMS)
+                               ITB_FOUNDATION_ADDRESS)
 
 from .model import DBContext, ShopItem, ShopOrder, Symbol, User
 from .wallet import WalletController
