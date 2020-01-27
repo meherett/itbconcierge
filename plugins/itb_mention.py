@@ -268,7 +268,7 @@ def itb_switch_notification_enabled(message: Message):
                 message.reply(response_txt)
             else:
                 user.notification_enabled = False
-                response_txt = "通知をONにしました。"
+                response_txt = "通知をOFFにしました。"
                 message.reply(response_txt)
 
         # コミット
