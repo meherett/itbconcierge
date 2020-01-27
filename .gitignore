@@ -133,3 +133,6 @@ dmypy.json
 
 # sample code
 sample/
+
+# node js
+node_modules/
