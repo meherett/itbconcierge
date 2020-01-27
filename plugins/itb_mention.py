@@ -9,7 +9,7 @@ from sqlalchemy.sql.functions import func
 from slackbot_settings import (CONTRACT_ADDRESS, GOOD_REACTIONS,
                                ITB_FOUNDATION_ADDRESS, ITBCAFE_ITEMS)
 
-from .model import DBContext, Merchandise, Symbol, User
+from .model import DBContext, ShopItem, ShopOrder, Symbol, User
 from .wallet import WalletController
 from .withdrawal import WithdrawalController
 
@@ -327,7 +327,7 @@ def itb_do_reaction(message: Message):
 
 @listen_to("ITBCafe.*商品登録", re.IGNORECASE)
 @respond_to("ITBCafe.*商品登録", re.IGNORECASE)
-def itbcafe_create_merchandise(message: Message):
+def itbcafe_create_shopitem(message: Message):
 
     # DBセッションを開く
     db_context = DBContext()
@@ -370,8 +370,8 @@ def itbcafe_create_merchandise(message: Message):
 
             if len(validation_errors) == 0:
 
-                item = db_context.session.query(Merchandise) \
-                    .filter(Merchandise.name == name) \
+                item = db_context.session.query(ShopItem) \
+                    .filter(ShopItem.name == name) \
                     .first()
 
                 # 商品が登録されている場合、登録を更新する
@@ -382,7 +382,7 @@ def itbcafe_create_merchandise(message: Message):
 
                 # 商品が登録されていない場合、新規登録する
                 else:
-                    item = Merchandise(
+                    item = ShopItem(
                         name=name,
                         price=price,
                         available=True,
@@ -415,7 +415,7 @@ def itbcafe_create_merchandise(message: Message):
 
 @listen_to("ITBCafe.*商品削除", re.IGNORECASE)
 @respond_to("ITBCafe.*商品削除", re.IGNORECASE)
-def itbcafe_delete_merchandise(message: Message):
+def itbcafe_delete_shopitem(message: Message):
 
     # DBセッションを開く
     db_context = DBContext()
@@ -450,8 +450,8 @@ def itbcafe_delete_merchandise(message: Message):
 
             if len(validation_errors) == 0:
 
-                item = db_context.session.query(Merchandise) \
-                    .filter(Merchandise.name == name) \
+                item = db_context.session.query(ShopItem) \
+                    .filter(ShopItem.name == name) \
                     .first()
 
                 # 商品が登録されている場合、登録を削除する(論理削除)
@@ -490,7 +490,7 @@ def itbcafe_delete_merchandise(message: Message):
 
 @listen_to("ITBCafe.*商品一覧", re.IGNORECASE)
 @respond_to("ITBCafe.*商品一覧", re.IGNORECASE)
-def itbcafe_list_merchandise(message: Message):
+def itbcafe_list_shopitem(message: Message):
 
     # DBセッションを開く
     db_context = DBContext()
@@ -508,8 +508,8 @@ def itbcafe_list_merchandise(message: Message):
     # ユーザー登録されている場合
     else:
 
-        items = db_context.session.query(Merchandise) \
-            .filter(Merchandise.available == True) \
+        items = db_context.session.query(ShopItem) \
+            .filter(ShopItem.available == True) \
             .all()
 
         if len(items) > 0:
@@ -532,7 +532,7 @@ def itbcafe_list_merchandise(message: Message):
 
 @listen_to("ITBCafe.*購入", re.IGNORECASE)
 @respond_to("ITBCafe.*購入", re.IGNORECASE)
-def itbcafe_buy_merchandise(message: Message):
+def itbcafe_buy_shopitem(message: Message):
 
     # DBセッションを開く
     db_context = DBContext()
@@ -567,9 +567,9 @@ def itbcafe_buy_merchandise(message: Message):
 
             if len(validation_errors) == 0:
 
-                item = db_context.session.query(Merchandise) \
-                    .filter(Merchandise.name == name) \
-                    .filter(Merchandise.available == True) \
+                item = db_context.session.query(ShopItem) \
+                    .filter(ShopItem.name == name) \
+                    .filter(ShopItem.available == True) \
                     .first()
 
                 # 商品が登録されている場合
@@ -581,6 +581,18 @@ def itbcafe_buy_merchandise(message: Message):
 
                     # 結果を通知する
                     if is_success == True:
+
+                        order = ShopOrder(
+                            userid=user.id,
+                            name=item.name,
+                            price=item.price,
+                            ordered_at=func.now(),
+                            created_at=func.now(),
+                            updated_at=func.now()
+                        )
+                        db_context.session.add(order)
+                        db_context.session.commit()
+
                         response_txt = "{}の購入が完了しました:yum: (-{:.0f} ITB)\n"
                         response_txt += "https://ropsten.etherscan.io/tx/{}"
                         response_txt = response_txt.format(

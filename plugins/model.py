@@ -109,13 +109,25 @@ class WithdrawalRequest(Base):
     )
 
 
-class Merchandise(Base):
-    __tablename__ = 'merchandise'
+class ShopItem(Base):
+    __tablename__ = 'shop_item'
 
     id = Column("id", Integer, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False)
     price = Column(Numeric, nullable=False)
     available = Column(Boolean, nullable=False)
+    created_at = Column(TIMESTAMP, nullable=False)
+    updated_at = Column(TIMESTAMP, nullable=False)
+
+
+class ShopOrder(Base):
+    __tablename__ = 'shop_order'
+
+    id = Column("id", Integer, primary_key=True, autoincrement=True)
+    userid = Column(Text, nullable=False)
+    name = Column(Text, nullable=False)
+    price = Column(Numeric, nullable=False)
+    ordered_at = Column(TIMESTAMP, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False)
     updated_at = Column(TIMESTAMP, nullable=False)
 
