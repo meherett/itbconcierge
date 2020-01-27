@@ -613,7 +613,7 @@ def itbcafe_buy_shopitem(message: Message):
                         message.reply(response_txt)
 
                     # いいね！を欲した者に登録する
-                    if is_success and item["name"].find("いいね") > -1:
+                    if is_success and item.name.find("いいね") > -1:
                         add_to_greedies(message.user["id"])
 
                 # 商品が登録されていない場合
