@@ -29,6 +29,7 @@ class User(Base):
     slack_name = Column(Text, nullable=False)
     eth_address = Column(Text, nullable=True)
     eth_privkey = Column(Text, nullable=True)
+    notification_enabled = Column(Boolean, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False)
     updated_at = Column(TIMESTAMP, nullable=False)
 
@@ -106,6 +107,17 @@ class WithdrawalRequest(Base):
     __table_args__ = (
         Index("ui_withdrawal_request_01", tx_hash, unique=False),
     )
+
+
+class Merchandise(Base):
+    __tablename__ = 'merchandise'
+
+    id = Column("id", Integer, primary_key=True, autoincrement=True)
+    name = Column(Text, nullable=False)
+    price = Column(Numeric, nullable=False)
+    available = Column(Boolean, nullable=False)
+    created_at = Column(TIMESTAMP, nullable=False)
+    updated_at = Column(TIMESTAMP, nullable=False)
 
 
 class Symbol:

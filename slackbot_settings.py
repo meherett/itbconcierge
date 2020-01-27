@@ -20,9 +20,3 @@ CONTRACT_ADDRESS = "0x1d5406ffebFd89110310a111BB02e79b9F96F7a0"
 GOOD_REACTIONS = [
     "ok_hand", "+1"
 ]
-
-# ITBCafeの商品一覧
-ITBCAFE_ITEMS = [
-    {"name": "お菓子", "price": 100},
-    {"name": "いいね！ブースト", "price": 300}
-]

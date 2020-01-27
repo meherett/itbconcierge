@@ -53,7 +53,7 @@ class WithdrawalController:
             送金依頼ID
         """
 
-        wh = WithdrawalRequest(
+        request = WithdrawalRequest(
             symbol=symbol,
             amount=amount,
             from_address=from_address,
@@ -62,10 +62,10 @@ class WithdrawalController:
             created_at=func.now(),
             updated_at=func.now()
         )
-        self._db_context.session.add(wh)
+        self._db_context.session.add(request)
         self._db_context.session.flush()
 
-        return wh.id
+        return request.id
 
     def get_request_progress(self, request_id: int) -> str:
         """
@@ -82,18 +82,18 @@ class WithdrawalController:
             送金依頼の進捗
         """
 
-        wr = self._db_context.session.query(WithdrawalRequest) \
+        request = self._db_context.session.query(WithdrawalRequest) \
             .filter(WithdrawalRequest.id == request_id) \
             .first()
 
-        if wr is None:
+        if request is None:
             return "Not Found"
-        elif wr.is_success is None:
+        elif request.is_success is None:
             return "Pending"
-        elif wr.is_success == True:
+        elif request.is_success == True:
             return "Success"
-        elif wr.is_success == False:
-            return wr.error_reason
+        elif request.is_success == False:
+            return request.error_reason
         else:
             return "Unknown Error"
 
@@ -128,7 +128,6 @@ class WithdrawalExecutor(threading.Thread):
             updated_from = (datetime.datetime.now() - datetime.timedelta(seconds=60)).astimezone(timezone('UTC'))
             rest_address = self._db_context.session \
                 .query(distinct(WithdrawalRequest.from_address)) \
-                .filter(WithdrawalRequest.is_success == True) \
                 .filter(WithdrawalRequest.updated_at >= updated_from) \
                 .all()
             rest_address = list(map(lambda x: x[0], rest_address))
@@ -199,62 +198,72 @@ class WithdrawalExecutor(threading.Thread):
                 elif requests[0].purpose == "新規登録ボーナス":
 
                     # 送金先ユーザーに通知する
-                    channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
-                    if requests[0].is_success == True:
-                        self._slackclient.send_message(
-                            channel_id,
-                            str(
-                                "新規登録ボーナスを獲得しました:laughing: (+{:.0f} ITB)\n" +
-                                "https://ropsten.etherscan.io/tx/{}"
-                            ).format(total_amount, requests[0].tx_hash)
-                        )
-                    else:
-                        self._slackclient.send_message(
-                            channel_id,
-                            "新規登録ボーナスの獲得に失敗しました:sob:"
-                        )
+                    if to_user.notification_enabled:
+                        channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
+                        if requests[0].is_success == True:
+                            self._slackclient.send_message(
+                                channel_id,
+                                str(
+                                    "新規登録ボーナスを獲得しました:laughing: (+{:.0f} ITB)\n" +
+                                    "https://ropsten.etherscan.io/tx/{}"
+                                ).format(total_amount, requests[0].tx_hash)
+                            )
+                        else:
+                            self._slackclient.send_message(
+                                channel_id,
+                                str(
+                                    "新規登録ボーナスの獲得に失敗しました:sob:\n" +
+                                    "{}"
+                                ).format(requests[0].error_reason)
+                            )
 
                 elif requests[0].purpose == "いいね！チップ":
 
                     # 送金先ユーザーに通知する
-                    channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
-                    if requests[0].is_success == True:
-                        self._slackclient.send_message(
-                            channel_id,
-                            str(
-                                "いいね！チップを獲得しました:laughing: (+{:.0f} ITB)\n" +
-                                "https://ropsten.etherscan.io/tx/{}"
-                            ).format(total_amount, requests[0].tx_hash)
-                        )
+                    if to_user.notification_enabled:
+                        channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
+                        if requests[0].is_success == True:
+                            self._slackclient.send_message(
+                                channel_id,
+                                str(
+                                    "いいね！チップを獲得しました:laughing: (+{:.0f} ITB)\n" +
+                                    "https://ropsten.etherscan.io/tx/{}"
+                                ).format(total_amount, requests[0].tx_hash)
+                            )
 
                     # 送金元ユーザーに通知する
-                    channel_id = self._slackclient.open_dm_channel(from_user.slack_uid)
-                    if requests[0].is_success == True:
-                        self._slackclient.send_message(
-                            channel_id,
-                            str(
-                                "いいね！チップを送信しました:laughing: (-{:.0f} ITB)\n" +
-                                "https://ropsten.etherscan.io/tx/{}"
-                            ).format(total_amount, requests[0].tx_hash)
-                        )
-                    else:
-                        self._slackclient.send_message(
-                            channel_id,
-                            "いいね！チップの送信に失敗しました:sob:"
-                        )
+                    if from_user.notification_enabled:
+                        channel_id = self._slackclient.open_dm_channel(from_user.slack_uid)
+                        if requests[0].is_success == True:
+                            self._slackclient.send_message(
+                                channel_id,
+                                str(
+                                    "いいね！チップを送信しました:laughing: (-{:.0f} ITB)\n" +
+                                    "https://ropsten.etherscan.io/tx/{}"
+                                ).format(total_amount, requests[0].tx_hash)
+                            )
+                        else:
+                            self._slackclient.send_message(
+                                channel_id,
+                                str(
+                                    "いいね！チップの送信に失敗しました:sob:\n" +
+                                    "{}"
+                                ).format(requests[0].error_reason)
+                            )
 
                 elif requests[0].purpose == "グッドコミュニケーションボーナス":
 
                     # 送金先ユーザーに通知する
-                    channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
-                    if requests[0].is_success == True:
-                        self._slackclient.send_message(
-                            channel_id,
-                            str(
-                                "グッドコミュニケーションボーナスを獲得しました:laughing: (+{:.0f} ITB)\n" +
-                                "https://ropsten.etherscan.io/tx/{}"
-                            ).format(total_amount, requests[0].tx_hash)
-                        )
+                    if to_user.notification_enabled:
+                        channel_id = self._slackclient.open_dm_channel(to_user.slack_uid)
+                        if requests[0].is_success == True:
+                            self._slackclient.send_message(
+                                channel_id,
+                                str(
+                                    "グッドコミュニケーションボーナスを獲得しました:laughing: (+{:.0f} ITB)\n" +
+                                    "https://ropsten.etherscan.io/tx/{}"
+                                ).format(total_amount, requests[0].tx_hash)
+                            )
 
             past_time = time.time() - start_time
             if past_time < self._withdrawal_interval:
