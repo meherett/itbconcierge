@@ -65,12 +65,12 @@ class ReportPublisher(threading.Thread):
             .query(func.sum(WithdrawalRequest.amount)) \
             .filter(WithdrawalRequest.updated_at >= date_from) \
             .filter(WithdrawalRequest.updated_at < date_to) \
-            .all()
+            .all()[0]
 
         channel_id = "GFUHV4T5F"
         self._slackclient.send_message(
             channel_id,
-            "昨日の総幸福量(Gross Happiness)は「{} ITB」でした。"
+            "昨日の総幸福量(Gross Happiness)は「{:.0f} ITB」でした。"
             .format(amount)
         )
 
@@ -84,14 +84,14 @@ class ReportPublisher(threading.Thread):
 
         amount = self._db_context.session \
             .query(func.sum(ShopOrder.price)) \
-            .filter(WithdrawalRequest.ordered_at >= date_from) \
-            .filter(WithdrawalRequest.ordered_at < date_to) \
-            .all()
+            .filter(ShopOrder.ordered_at >= date_from) \
+            .filter(ShopOrder.ordered_at < date_to) \
+            .all()[0]
 
         channel_id = "GFUHV4T5F"
         self._slackclient.send_message(
             channel_id,
-            "昨日のITBカフェ売上高は「{} ITB」でした。"
+            "昨日のITBカフェ売上高は「{:.0f} ITB」でした。"
             .format(amount)
         )
 
