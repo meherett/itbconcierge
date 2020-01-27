@@ -1,12 +1,13 @@
 import datetime
 import threading
 import time
+from decimal import Decimal
 
 from pytz import timezone
 from slackbot.slackclient import SlackClient
 from sqlalchemy.sql.functions import func
 
-from slackbot_settings import API_TOKEN
+from slackbot_settings import API_TOKEN, REPORT_CHANNELS
 
 from .model import DBContext, ShopOrder, WithdrawalRequest
 
@@ -44,16 +45,21 @@ class ReportPublisher(threading.Thread):
             if current_datetime.weekday() in [0, 1, 2, 3, 4]:
                 # 朝10時の場合
                 if current_datetime.hour == 10:
-                    # 総幸福量(Gross Happiness)に関するレポートを発行する
-                    self.publish_grosshappiness(current_datetime-datetime.timedelta(days=1))
-                    # ITBカフェの売上高に関するレポートを発行する
-                    self.publish_sales(current_datetime-datetime.timedelta(days=1))
+                    for channel_id in REPORT_CHANNELS:
+                        self._slackclient.send_message(
+                            channel_id,
+                            "昨日のITBトークンの利用状況を報告します。"
+                        )
+                        # 総幸福量(Gross Happiness)に関するレポートを発行する
+                        self.publish_grosshappiness(channel_id, current_datetime-datetime.timedelta(days=1))
+                        # ITBカフェの売上高に関するレポートを発行する
+                        self.publish_sales(channel_id, current_datetime-datetime.timedelta(days=1))
 
             past_time = time.time() - start_time
             if past_time < self._interval:
                 time.sleep(self._interval - past_time)
 
-    def publish_grosshappiness(self, designated_date: datetime.datetime):
+    def publish_grosshappiness(self, channel_id: str, designated_date: datetime.datetime):
         """
         総幸福量(Gross Happiness)に関するレポートを発行します。
         """
@@ -65,16 +71,17 @@ class ReportPublisher(threading.Thread):
             .query(func.sum(WithdrawalRequest.amount)) \
             .filter(WithdrawalRequest.updated_at >= date_from) \
             .filter(WithdrawalRequest.updated_at < date_to) \
-            .all()[0]
+            .all()[0][0]
+        if amount is None:
+            amount = Decimal("0")
 
-        channel_id = "GFUHV4T5F"
         self._slackclient.send_message(
             channel_id,
             "昨日の総幸福量(Gross Happiness)は「{:.0f} ITB」でした。"
             .format(amount)
         )
 
-    def publish_sales(self, designated_date: datetime.datetime):
+    def publish_sales(self, channel_id: str, designated_date: datetime.datetime):
         """
         ITBカフェの売上高に関するレポートを発行します。
         """
@@ -86,9 +93,10 @@ class ReportPublisher(threading.Thread):
             .query(func.sum(ShopOrder.price)) \
             .filter(ShopOrder.ordered_at >= date_from) \
             .filter(ShopOrder.ordered_at < date_to) \
-            .all()[0]
+            .all()[0][0]
+        if amount is None:
+            amount = Decimal("0")
 
-        channel_id = "GFUHV4T5F"
         self._slackclient.send_message(
             channel_id,
             "昨日のITBカフェ売上高は「{:.0f} ITB」でした。"

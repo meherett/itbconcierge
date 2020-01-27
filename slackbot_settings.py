@@ -18,5 +18,6 @@ CONTRACT_ADDRESS = "0x1d5406ffebFd89110310a111BB02e79b9F96F7a0"
 
 # いいね！アイコンの定義
 GOOD_REACTIONS = [
-    "ok_hand", "+1"
+
+REPORT_CHANNELS = [
 ]
