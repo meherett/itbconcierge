@@ -47,6 +47,7 @@ setup(
         'cobra_hdwallet'
         'pywallet==0.1.0',
         'cytoolz',
-        'typing'
+        'typing',
+        'sqlalchemy-migrate'
     ],
 )
