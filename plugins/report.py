@@ -9,7 +9,7 @@ from sqlalchemy.sql.functions import func
 
 from slackbot_settings import API_TOKEN, REPORT_CHANNELS
 
-from .model import DBContext, ShopOrder, WithdrawalRequest
+from .model import DBContext, ShopOrder, Symbol, WithdrawalRequest
 
 
 class ReportPublisher(threading.Thread):
@@ -69,6 +69,7 @@ class ReportPublisher(threading.Thread):
 
         amount = self._db_context.session \
             .query(func.sum(WithdrawalRequest.amount)) \
+            .filter(WithdrawalRequest.symbol == Symbol.ITB) \
             .filter(WithdrawalRequest.updated_at >= date_from) \
             .filter(WithdrawalRequest.updated_at < date_to) \
             .all()[0][0]
