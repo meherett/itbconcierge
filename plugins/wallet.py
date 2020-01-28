@@ -48,7 +48,7 @@ class WalletController:
 
     def get_balance(self, symbol: str) -> Decimal:
         """
-        指定された通貨の残高を取得します。
+        指定された通貨のether単位の残高を取得します。
 
         Parameters
         ----------
@@ -85,7 +85,7 @@ class WalletController:
         symbol : str
             送金する通貨種(ETH/ITB)
         amount : Decimal
-            送金額
+            送金額(ether単位)
 
         Returns
         -------
@@ -106,6 +106,12 @@ class WalletController:
 
         # ETHの場合
         if symbol == Symbol.ETH:
+            # 残高確認
+            eth_balance = self.get_balance(symbol)
+            if eth_balance < amount:
+                error_reason = ErrorReason.INSUFFICIENT_FUNDS
+                return is_success, tx_hash, error_reason
+
             add_params = {
                 'gas': 21000,
                 'to': to_address,
@@ -121,6 +127,12 @@ class WalletController:
                 error_reason = str(e)
         # ITBの場合
         elif symbol == Symbol.ITB:
+            # 残高確認
+            itb_balance = self.get_balance(symbol)
+            if itb_balance < amount:
+                error_reason = ErrorReason.INSUFFICIENT_FUNDS
+                return is_success, tx_hash, error_reason
+
             add_params = {'gas': 100000}
             tx_params.update(add_params)
             try:
@@ -136,3 +148,7 @@ class WalletController:
                 error_reason = str(e)
 
         return is_success, tx_hash, error_reason
+
+
+class ErrorReason:
+    INSUFFICIENT_FUNDS = "insufficient funds"
