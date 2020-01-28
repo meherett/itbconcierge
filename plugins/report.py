@@ -61,7 +61,7 @@ class ReportPublisher(threading.Thread):
 
     def publish_grosshappiness(self, channel_id: str, designated_date: datetime.datetime):
         """
-        総幸福量(Gross Happiness)に関するレポートを発行します。
+        いいね！総生産量に関するレポートを発行します。
         """
 
         date_from = datetime.datetime(*designated_date.timetuple()[:3])
@@ -78,7 +78,7 @@ class ReportPublisher(threading.Thread):
 
         self._slackclient.send_message(
             channel_id,
-            "昨日の総幸福量(Gross Happiness)は「{:.0f} ITB」でした。"
+            "昨日のいいね！総生産量は「{:.0f} ITB」でした。"
             .format(amount)
         )
 
