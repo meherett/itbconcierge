@@ -13,9 +13,6 @@ from .model import DBContext, ShopItem, ShopOrder, Symbol, User
 from .wallet import WalletController
 from .withdrawal import WithdrawalController
 
-# いいね！を欲した者
-greedies = []
-
 
 @listen_to("ITB.*ヘルプ", re.IGNORECASE)
 @respond_to("ITB.*ヘルプ", re.IGNORECASE)
@@ -612,10 +609,6 @@ def itbcafe_buy_shopitem(message: Message):
                         )
                         message.reply(response_txt)
 
-                    # いいね！を欲した者に登録する
-                    if is_success and item.name.find("いいね") > -1:
-                        add_to_greedies(message.user["id"])
-
                 # 商品が登録されていない場合
                 else:
                     response_txt = "取り扱いのない商品です。"
@@ -625,29 +618,11 @@ def itbcafe_buy_shopitem(message: Message):
                 message.reply(response_txt)
         else:
             response_txt = "購入は下記のフォーマットで入力してください。\n"
-            response_txt += "「ITB 購入 {商品名}」"
+            response_txt += "「ITBCafe 購入 {商品名}」"
             message.reply(response_txt)
 
     # DBセッションを閉じる
     db_context.session.close()
-
-
-def add_to_greedies(userid: str):
-    """
-    「いいね！」を欲した人に登録する
-    """
-    user = list(filter(lambda x: x == userid, greedies))
-    if len(user) == 0:
-        greedies.append(userid)
-
-
-def give_like_to_greedies(message: Message):
-    """
-    「いいね！」を欲した人に「いいね！」する
-    """
-    user = list(filter(lambda x: x == message.user["id"], greedies))
-    if len(user) > 0:
-        message.react(random.choice(GOOD_REACTIONS))
 
 
 @listen_to(".*")
@@ -657,5 +632,4 @@ def default_reply_all(message: Message):
     デフォルト
     """
 
-    # 「いいね！」を欲した人に「いいね！」する
-    give_like_to_greedies(message)
+    pass
