@@ -1,5 +1,5 @@
 from decimal import Decimal
-from json import load
+from json import loads
 
 from cobra_hdwallet import CobraHDWallet
 from eth_typing import URI
@@ -21,8 +21,7 @@ class WalletController:
         self._privkey = privkey
         self._web3 = Web3(WebsocketProvider(endpoint_uri=URI(CLIENT_API_URL)))
         checked_contract_address = self._web3.toChecksumAddress(CONTRACT_ADDRESS)
-        with open("abi.json", 'r') as f:
-            abi = load(f)
+        abi = loads(ABI)
         self._contract = self._web3.eth.contract(abi=abi, address=checked_contract_address)
 
     @staticmethod
@@ -48,7 +47,7 @@ class WalletController:
 
     def get_balance(self, symbol: str) -> Decimal:
         """
-        指定された通貨の残高を取得します。
+        指定された通貨のether単位の残高を取得します。
 
         Parameters
         ----------
@@ -85,7 +84,7 @@ class WalletController:
         symbol : str
             送金する通貨種(ETH/ITB)
         amount : Decimal
-            送金額
+            送金額(ether単位)
 
         Returns
         -------
@@ -106,6 +105,12 @@ class WalletController:
 
         # ETHの場合
         if symbol == Symbol.ETH:
+            # 残高確認
+            eth_balance = self.get_balance(symbol)
+            if eth_balance < amount:
+                error_reason = ErrorReason.INSUFFICIENT_FUNDS
+                return is_success, tx_hash, error_reason
+
             add_params = {
                 'gas': 21000,
                 'to': to_address,
@@ -121,6 +126,12 @@ class WalletController:
                 error_reason = str(e)
         # ITBの場合
         elif symbol == Symbol.ITB:
+            # 残高確認
+            itb_balance = self.get_balance(symbol)
+            if itb_balance < amount:
+                error_reason = ErrorReason.INSUFFICIENT_FUNDS
+                return is_success, tx_hash, error_reason
+
             add_params = {'gas': 100000}
             tx_params.update(add_params)
             try:
@@ -136,3 +147,280 @@ class WalletController:
                 error_reason = str(e)
 
         return is_success, tx_hash, error_reason
+
+
+class ErrorReason:
+    INSUFFICIENT_FUNDS = "insufficient funds"
+
+
+ABI = """
+[
+    {
+        "constant": true,
+        "inputs": [],
+        "name": "name",
+        "outputs": [
+            {
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": false,
+        "inputs": [
+            {
+                "name": "spender",
+                "type": "address"
+            },
+            {
+                "name": "value",
+                "type": "uint256"
+            }
+        ],
+        "name": "approve",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [],
+        "name": "totalSupply",
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": false,
+        "inputs": [
+            {
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "transferFrom",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": false,
+        "inputs": [
+            {
+                "name": "spender",
+                "type": "address"
+            },
+            {
+                "name": "addedValue",
+                "type": "uint256"
+            }
+        ],
+        "name": "increaseAllowance",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [
+            {
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "balanceOf",
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [
+            {
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": false,
+        "inputs": [
+            {
+                "name": "spender",
+                "type": "address"
+            },
+            {
+                "name": "subtractedValue",
+                "type": "uint256"
+            }
+        ],
+        "name": "decreaseAllowance",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": false,
+        "inputs": [
+            {
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "transfer",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": true,
+        "inputs": [
+            {
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "name": "spender",
+                "type": "address"
+            }
+        ],
+        "name": "allowance",
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "name": "from",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "name": "to",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "name": "value",
+                "type": "uint256"
+            }
+        ],
+        "name": "Transfer",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "name": "owner",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "name": "spender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "name": "value",
+                "type": "uint256"
+            }
+        ],
+        "name": "Approval",
+        "type": "event"
+    }
+]
+"""

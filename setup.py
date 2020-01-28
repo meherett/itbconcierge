@@ -44,8 +44,7 @@ setup(
         'requests==2.22.0',
         'pyopenssl',
         'web3==5.4.0',
-        'cobra_hdwallet'
-        'pywallet==0.1.0',
+        'cobra_hdwallet',
         'cytoolz',
         'typing',
         'sqlalchemy-migrate'
