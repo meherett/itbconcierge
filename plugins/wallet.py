@@ -98,7 +98,7 @@ class WalletController:
         from_address = self._web3.toChecksumAddress(self._address)
         to_address = self._web3.toChecksumAddress(to_address)
         tx_params = {
-            'gasPrice': self._web3.toWei('1', 'gwei'),
+            'gasPrice': self._web3.toWei('10', 'gwei'),
             'nonce': self._web3.eth.getTransactionCount(from_address),
             'from': from_address,
         }
