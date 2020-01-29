@@ -23,7 +23,7 @@ class ReportPublisher(threading.Thread):
         self._db_context = DBContext()
         self._slackclient = SlackClient(API_TOKEN)
         self._should_stop = False
-        self._interval = 2000
+        self._interval = 3600
 
     def run(self):
         """

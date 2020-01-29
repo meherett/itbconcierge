@@ -136,7 +136,7 @@ class WithdrawalExecutor(threading.Thread):
             prompt = self._db_context.session.query(WithdrawalRequest) \
                 .filter(WithdrawalRequest.is_success.is_(None)) \
                 .filter(WithdrawalRequest.from_address.notin_(rest_address)) \
-                .order_by(asc(WithdrawalRequest.id)) \
+                .order_by(asc(WithdrawalRequest.symbol), asc(WithdrawalRequest.id)) \
                 .first()
 
             # 未着手の送金依頼を取得できた場合
