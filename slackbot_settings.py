@@ -9,7 +9,11 @@ ITB_FOUNDATION_ADDRESS = ""
 # ITB財団の秘密鍵
 ITB_FOUNDATION_PRIVKEY = ""
 # ITB財団HDウォレットのニーモニック
-ITB_FOUNDATION_MNEMONIC = ""
+ITB_FOUNDATION_MNEMONIC = {
+    "mnemonic": "",
+    "passphrase": "",
+    "path": ""  # m/44'/60'/0'/0/0
+}
 
 # Ethereum Client API URI
 CLIENT_API_URL = "wss://ropsten.infura.io/ws/v3/{PROJECT_ID}"
