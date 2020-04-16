@@ -1,7 +1,7 @@
 from decimal import Decimal
 from json import loads
 
-from cobra_hdwallet import CobraHDWallet
+from eth_wallet import Wallet
 from eth_typing import URI
 from web3 import Web3, WebsocketProvider
 
@@ -25,12 +25,12 @@ class WalletController:
         self._contract = self._web3.eth.contract(abi=abi, address=checked_contract_address)
 
     @staticmethod
-    def create_address(userid: int) -> tuple:
+    def create_address(path=ITB_FOUNDATION_MNEMONIC["path"]) -> tuple:
         """
         新規アドレスを発行します。
         Parameters
         ----------
-        userid : int
+        path : str
             HDウォレットパス
 
         Returns
@@ -39,11 +39,12 @@ class WalletController:
             新規発行したアドレスと秘密鍵を返す。
             (new_address, new_privkey)
         """
-        hd_wallet = CobraHDWallet.master_key_from_mnemonic(ITB_FOUNDATION_MNEMONIC)
-        derive_private_key = hd_wallet.DerivePrivateKey(userid)
-        adderess = derive_private_key.Address()
-        privkey = derive_private_key.PrivateKey().hex()
-        return adderess, privkey
+        wallet = Wallet().from_mnemonic(
+            mnemonic=ITB_FOUNDATION_MNEMONIC["mnemonic"],
+            passphrase=ITB_FOUNDATION_MNEMONIC["passphrase"]
+        )
+        wallet.from_path(path=path)
+        return wallet.address(), wallet.private_key()
 
     def get_balance(self, symbol: str) -> Decimal:
         """
